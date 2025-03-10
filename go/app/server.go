@@ -49,6 +49,7 @@ func (s Server) Run() int {
 	mux.HandleFunc("POST /items", h.AddItem)
 	mux.HandleFunc("GET /items/{id}", h.GetItemById)
 	mux.HandleFunc("GET /images/{filename}", h.GetImage)
+	mux.HandleFunc("GET /search", h.SearchItemByName)
 
 	// start the server
 	slog.Info("http server started on", "port", s.Port)
@@ -87,9 +88,8 @@ type GetItemsResponse struct {
 
 func (s *Handlers) GetItems(w http.ResponseWriter, r *http.Request) {
 
-	// open json file and decode
-	fileName := s.itemRepo.GetFileName()
-	items, err := decodeItemsFromFile(fileName)
+	// get items from db
+	items, err := s.itemRepo.GetItems(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -264,29 +264,6 @@ type GetItemByIdResponse struct {
 	ImageName string `json:"image_name"`
 }
 
-func decodeItemsFromFile(fileName string) ([]Item, error) {
-	// open json file
-	jsonFile, err := os.Open(fileName)
-	if err != nil {
-		slog.Error("failed to open jsonFile: ", "error", err)
-		return nil, err
-	}
-	defer jsonFile.Close()
-	
-	// read json file as bytes
-	bytes, _ := io.ReadAll(jsonFile)
-	
-	// decode bytes to map
-	var decodeData map[string][]Item
-	json.Unmarshal(bytes, &decodeData)
-
-	var items []Item
-	for _, v := range decodeData {
-		items = append(items, v...)
-	}
-	return items, nil
-}
-
 func (s *Handlers) GetItemById(w http.ResponseWriter, r *http.Request) {
 	// get itemId from URL
 	itemIdStr := r.PathValue("id")
@@ -296,25 +273,18 @@ func (s *Handlers) GetItemById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// open json file and decode
-	fileName := s.itemRepo.GetFileName()
-	items, err := decodeItemsFromFile(fileName)
+	// get item from db
+	item, err := s.itemRepo.GetItemById(itemId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// check itemId is valid
-	if len(items) < itemId {
-		http.Error(w, "invalid request", http.StatusBadRequest)
-		return
-	}
-	
-	// find item by itemId
+	// make response
 	resp := GetItemByIdResponse{
-		Name: items[itemId - 1].Name,
-		Category: items[itemId - 1].Category,
-		ImageName: items[itemId - 1].ImageName,
+		Name: item.Name,
+		Category: item.Category,
+		ImageName: item.ImageName,
 	}
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
@@ -372,4 +342,22 @@ func (s *Handlers) buildImagePath(imageFileName string) (string, error) {
 	}
 
 	return imgPath, nil
+}
+
+func (s *Handlers) SearchItemByName(w http.ResponseWriter, r *http.Request) {
+	// get query parameter
+	keyword := r.FormValue("keyword")
+	items, err := s.itemRepo.GetItemByKeyword(keyword)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// make response
+	resp := GetItemsResponse{Items: items}
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
