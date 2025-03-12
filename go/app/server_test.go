@@ -2,8 +2,10 @@ package app
 
 import (
 	"bytes"
+	"encoding/json"
 	"mime/multipart"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -94,37 +96,43 @@ func TestParseAddItemRequest(t *testing.T) {
 	}
 }
 
-// func TestHelloHandler(t *testing.T) {
-// 	t.Parallel()
+func TestHelloHandler(t *testing.T) {
+	t.Parallel()
 
-// 	// Please comment out for STEP 6-2
-// 	// predefine what we want
-// 	type wants struct {
-// 		code int               // desired HTTP status code
-// 		body map[string]string // desired body
-// 	}
-// 	want := wants{
-// 		code: http.StatusOK,
-// 		body: map[string]string{"message": "Hello, world!"},
-// 	}
+	// Please comment out for STEP 6-2
+	// predefine what we want
+	type wants struct {
+		code int               // desired HTTP status code
+		body map[string]string // desired body
+	}
+	want := wants{
+		code: http.StatusOK,
+		body: map[string]string{"message": "Hello, world!"},
+	}
 
-// 	// set up test
-// 	req := httptest.NewRequest("GET", "/hello", nil)
-// 	res := httptest.NewRecorder()
+	// set up test
+	req := httptest.NewRequest("GET", "/hello", nil)
+	res := httptest.NewRecorder()
 
-// 	h := &Handlers{}
-// 	h.Hello(res, req)
+	h := &Handlers{}
+	h.Hello(res, req)
 
-// 	// STEP 6-2: confirm the status code
-// 	if diff := cmp.Diff(want.code, res.Code); diff != "" {
-// 		t.Errorf("unexpected request (-want +got):\n%s", diff)
-// 	}
+	// STEP 6-2: confirm the status code
+	if diff := cmp.Diff(want.code, res.Code); diff != "" {
+		t.Errorf("unexpected request (-want +got):\n%s", diff)
+	}
 
-// 	// STEP 6-2: confirm response body
-// 	if diff := cmp.Diff(want.body, res.Body.String()); diff != "" {
-// 		t.Errorf("unexpected request (-want +got):\n%s", diff)
-// 	}
-// }
+	// parse response body as JSON
+	var gotBody map[string]string
+	if err := json.Unmarshal(res.Body.Bytes(), &gotBody); err != nil {
+		t.Fatalf("failed to parse response body: %v", err)
+	}
+
+	// STEP 6-2: confirm response body
+	if diff := cmp.Diff(want.body, gotBody); diff != "" {
+		t.Errorf("unexpected request (-want +got):\n%s", diff)
+	}
+}
 
 // func TestAddItem(t *testing.T) {
 // 	t.Parallel()
