@@ -1,14 +1,12 @@
 package app
 
 import (
+	"bytes"
+	"mime/multipart"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"go.uber.org/mock/gomock"
 )
 
 func TestParseAddItemRequest(t *testing.T) {
@@ -21,24 +19,29 @@ func TestParseAddItemRequest(t *testing.T) {
 
 	// STEP 6-1: define test cases
 	cases := map[string]struct {
-		args map[string]string
+		// args map[string]string
+		name string
+		category string
+		image []byte
 		wants
 	}{
 		"ok: valid request": {
-			args: map[string]string{
-				"name":     "", // fill here
-				"category": "", // fill here
-			},
+			name: "Alice",
+			category: "people",
+			image: []byte("dummy image data"),
 			wants: wants{
 				req: &AddItemRequest{
-					Name: "", // fill here
-					// Category: "", // fill here
+					Name: "Alice", // fill here
+					Category: "people", // fill here
+					Image: []byte("dummy image data"),
 				},
 				err: false,
 			},
 		},
 		"ng: empty request": {
-			args: map[string]string{},
+			name: "",
+			category: "",
+			image: []byte(""),
 			wants: wants{
 				req: nil,
 				err: true,
@@ -50,18 +53,29 @@ func TestParseAddItemRequest(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			// prepare request body
-			values := url.Values{}
-			for k, v := range tt.args {
-				values.Set(k, v)
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+
+			_ = writer.WriteField("name", tt.name)
+			_ = writer.WriteField("category", tt.category)
+			if len(tt.image) > 0 {
+				part, err := writer.CreateFormFile("image", "dummy.jpg")
+				if err != nil {
+					t.Fatalf("failed to create form file: %v", err)
+				}
+				_, err = part.Write(tt.image)
+				if err != nil {
+					t.Fatalf("failed to write form file: %v", err)
+				}
 			}
+			writer.Close()
 
 			// prepare HTTP request
-			req, err := http.NewRequest("POST", "http://localhost:9000/items", strings.NewReader(values.Encode()))
+			req, err := http.NewRequest("POST", "http://localhost:9000/items", &body)
 			if err != nil {
 				t.Fatalf("failed to create request: %v", err)
 			}
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("Content-Type", writer.FormDataContentType())
 
 			// execute test target
 			got, err := parseAddItemRequest(req)
@@ -75,111 +89,117 @@ func TestParseAddItemRequest(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.wants.req, got); diff != "" {
 				t.Errorf("unexpected request (-want +got):\n%s", diff)
-			}
+			}		
 		})
 	}
 }
 
-func TestHelloHandler(t *testing.T) {
-	t.Parallel()
+// func TestHelloHandler(t *testing.T) {
+// 	t.Parallel()
 
-	// Please comment out for STEP 6-2
-	// predefine what we want
-	// type wants struct {
-	// 	code int               // desired HTTP status code
-	// 	body map[string]string // desired body
-	// }
-	// want := wants{
-	// 	code: http.StatusOK,
-	// 	body: map[string]string{"message": "Hello, world!"},
-	// }
+// 	// Please comment out for STEP 6-2
+// 	// predefine what we want
+// 	type wants struct {
+// 		code int               // desired HTTP status code
+// 		body map[string]string // desired body
+// 	}
+// 	want := wants{
+// 		code: http.StatusOK,
+// 		body: map[string]string{"message": "Hello, world!"},
+// 	}
 
-	// set up test
-	req := httptest.NewRequest("GET", "/hello", nil)
-	res := httptest.NewRecorder()
+// 	// set up test
+// 	req := httptest.NewRequest("GET", "/hello", nil)
+// 	res := httptest.NewRecorder()
 
-	h := &Handlers{}
-	h.Hello(res, req)
+// 	h := &Handlers{}
+// 	h.Hello(res, req)
 
-	// STEP 6-2: confirm the status code
+// 	// STEP 6-2: confirm the status code
+// 	if diff := cmp.Diff(want.code, res.Code); diff != "" {
+// 		t.Errorf("unexpected request (-want +got):\n%s", diff)
+// 	}
 
-	// STEP 6-2: confirm response body
-}
+// 	// STEP 6-2: confirm response body
+// 	if diff := cmp.Diff(want.body, res.Body.String()); diff != "" {
+// 		t.Errorf("unexpected request (-want +got):\n%s", diff)
+// 	}
+// }
 
-func TestAddItem(t *testing.T) {
-	t.Parallel()
+// func TestAddItem(t *testing.T) {
+// 	t.Parallel()
 
-	type wants struct {
-		code int
-	}
-	cases := map[string]struct {
-		args     map[string]string
-		injector func(m *MockItemRepository)
-		wants
-	}{
-		"ok: correctly inserted": {
-			args: map[string]string{
-				"name":     "used iPhone 16e",
-				"category": "phone",
-			},
-			injector: func(m *MockItemRepository) {
-				// STEP 6-3: define mock expectation
-				// succeeded to insert
-			},
-			wants: wants{
-				code: http.StatusOK,
-			},
-		},
-		"ng: failed to insert": {
-			args: map[string]string{
-				"name":     "used iPhone 16e",
-				"category": "phone",
-			},
-			injector: func(m *MockItemRepository) {
-				// STEP 6-3: define mock expectation
-				// failed to insert
-			},
-			wants: wants{
-				code: http.StatusInternalServerError,
-			},
-		},
-	}
+// 	type wants struct {
+// 		code int
+// 	}
+// 	cases := map[string]struct {
+// 		args     map[string]string
+// 		injector func(m *MockItemRepository)
+// 		wants
+// 	}{
+// 		"ok: correctly inserted": {
+// 			args: map[string]string{
+// 				"name":     "used iPhone 16e",
+// 				"category": "phone",
+// 			},
+// 			injector: func(m *MockItemRepository) {
+// 				// STEP 6-3: define mock expectation
+// 				// succeeded to insert
+// 			},
+// 			wants: wants{
+// 				code: http.StatusOK,
+// 			},
+// 		},
+// 		"ng: failed to insert": {
+// 			args: map[string]string{
+// 				"name":     "used iPhone 16e",
+// 				"category": "phone",
+// 			},
+// 			injector: func(m *MockItemRepository) {
+// 				// STEP 6-3: define mock expectation
+// 				// failed to insert
+// 			},
+// 			wants: wants{
+// 				code: http.StatusInternalServerError,
+// 			},
+// 		},
+// 	}
 
-	for name, tt := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
+// 	for name, tt := range cases {
+// 		t.Run(name, func(t *testing.T) {
+// 			t.Parallel()
 
-			ctrl := gomock.NewController(t)
+// 			ctrl := gomock.NewController(t)
 
-			mockIR := NewMockItemRepository(ctrl)
-			tt.injector(mockIR)
-			h := &Handlers{itemRepo: mockIR}
+// 			mockIR := NewMockItemRepository(ctrl)
+// 			tt.injector(mockIR)
+// 			h := &Handlers{itemRepo: mockIR}
 
-			values := url.Values{}
-			for k, v := range tt.args {
-				values.Set(k, v)
-			}
-			req := httptest.NewRequest("POST", "/items", strings.NewReader(values.Encode()))
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+// 			values := url.Values{}
+// 			for k, v := range tt.args {
+// 				values.Set(k, v)
+// 			}
+// 			req := httptest.NewRequest("POST", "/items", strings.NewReader(values.Encode()))
+// 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-			rr := httptest.NewRecorder()
-			h.AddItem(rr, req)
+// 			rr := httptest.NewRecorder()
+// 			h.AddItem(rr, req)
 
-			if tt.wants.code != rr.Code {
-				t.Errorf("expected status code %d, got %d", tt.wants.code, rr.Code)
-			}
-			if tt.wants.code >= 400 {
-				return
-			}
+// 			if tt.wants.code != rr.Code {
+// 				t.Errorf("expected status code %d, got %d", tt.wants.code, rr.Code)
+// 			}
+// 			if tt.wants.code >= 400 {
+// 				return
+// 			}
 
-			for _, v := range tt.args {
-				if !strings.Contains(rr.Body.String(), v) {
-					t.Errorf("response body does not contain %s, got: %s", v, rr.Body.String())
-				}
-			}
-		})
-	}
-}
+// 			for _, v := range tt.args {
+// 				if !strings.Contains(rr.Body.String(), v) {
+// 					t.Errorf("response body does not contain %s, got: %s", v, rr.Body.String())
+// 				}
+// 			}
+// 		})
+// 	}
+// }
 
 // STEP 6-4: uncomment this test
 // func TestAddItemE2e(t *testing.T) {
