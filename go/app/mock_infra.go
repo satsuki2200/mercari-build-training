@@ -40,6 +40,65 @@ func (m *MockItemRepository) EXPECT() *MockItemRepositoryMockRecorder {
 	return m.recorder
 }
 
+// GetFileName mocks base method.
+func (m *MockItemRepository) GetFileName() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetFileName")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetFileName indicates an expected call of GetFileName.
+func (mr *MockItemRepositoryMockRecorder) GetFileName() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFileName", reflect.TypeOf((*MockItemRepository)(nil).GetFileName))
+}
+
+// GetItemById mocks base method.
+func (m *MockItemRepository) GetItemById(id int) (Item, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetItemById", id)
+	ret0, _ := ret[0].(Item)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetItemById indicates an expected call of GetItemById.
+func (mr *MockItemRepositoryMockRecorder) GetItemById(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetItemById", reflect.TypeOf((*MockItemRepository)(nil).GetItemById), id)
+}
+
+// GetItemByKeyword mocks base method.
+func (m *MockItemRepository) GetItemByKeyword(keyword string) ([]Item, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetItemByKeyword", keyword)
+	ret0, _ := ret[0].([]Item)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetItemByKeyword indicates an expected call of GetItemByKeyword.
+func (mr *MockItemRepositoryMockRecorder) GetItemByKeyword(keyword interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetItemByKeyword", reflect.TypeOf((*MockItemRepository)(nil).GetItemByKeyword), keyword)
+}
+
+// GetItems mocks base method.
+func (m *MockItemRepository) GetItems(ctx context.Context) ([]Item, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetItems", ctx)
+	ret0, _ := ret[0].([]Item)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetItems indicates an expected call of GetItems.
+func (mr *MockItemRepositoryMockRecorder) GetItems(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetItems", reflect.TypeOf((*MockItemRepository)(nil).GetItems), ctx)
+}
+
 // Insert mocks base method.
 func (m *MockItemRepository) Insert(ctx context.Context, item *Item) error {
 	m.ctrl.T.Helper()

@@ -3,12 +3,15 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"go.uber.org/mock/gomock"
 )
 
 func TestParseAddItemRequest(t *testing.T) {
@@ -21,7 +24,6 @@ func TestParseAddItemRequest(t *testing.T) {
 
 	// STEP 6-1: define test cases
 	cases := map[string]struct {
-		// args map[string]string
 		name string
 		category string
 		image []byte
@@ -134,80 +136,93 @@ func TestHelloHandler(t *testing.T) {
 	}
 }
 
-// func TestAddItem(t *testing.T) {
-// 	t.Parallel()
+func TestAddItem(t *testing.T) {
+	t.Parallel()
 
-// 	type wants struct {
-// 		code int
-// 	}
-// 	cases := map[string]struct {
-// 		args     map[string]string
-// 		injector func(m *MockItemRepository)
-// 		wants
-// 	}{
-// 		"ok: correctly inserted": {
-// 			args: map[string]string{
-// 				"name":     "used iPhone 16e",
-// 				"category": "phone",
-// 			},
-// 			injector: func(m *MockItemRepository) {
-// 				// STEP 6-3: define mock expectation
-// 				// succeeded to insert
-// 			},
-// 			wants: wants{
-// 				code: http.StatusOK,
-// 			},
-// 		},
-// 		"ng: failed to insert": {
-// 			args: map[string]string{
-// 				"name":     "used iPhone 16e",
-// 				"category": "phone",
-// 			},
-// 			injector: func(m *MockItemRepository) {
-// 				// STEP 6-3: define mock expectation
-// 				// failed to insert
-// 			},
-// 			wants: wants{
-// 				code: http.StatusInternalServerError,
-// 			},
-// 		},
-// 	}
+	type wants struct {
+		code int
+	}
+	cases := map[string]struct {
+		name string
+		category string
+		image []byte
+		injector func(m *MockItemRepository)
+		wants
+	}{
+		"ok: correctly inserted": {
+			name: "used iPhone 16e",
+			category: "people",
+			image: []byte("dummy.jpg"),
+			injector: func(m *MockItemRepository) {
+				// STEP 6-3: define mock expectation
+				// succeeded to insert
+				m.EXPECT().Insert(gomock.Any(), gomock.Any()).Return(nil)
+			},
+			wants: wants{
+				code: http.StatusOK,
+			},
+		},
+		"ng: failed to insert": {
+			name: "used iPhone 16e",
+			category: "people",
+			image: []byte("dummy.jpg"),
+			injector: func(m *MockItemRepository) {
+				// STEP 6-3: define mock expectation
+				// failed to insert
+				m.EXPECT().Insert(gomock.Any(), gomock.Any()).Return(errors.New("failed to insert item"))
+			},
+			wants: wants{
+				code: http.StatusInternalServerError,
+			},
+		},
+	}
 
-// 	for name, tt := range cases {
-// 		t.Run(name, func(t *testing.T) {
-// 			t.Parallel()
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-// 			ctrl := gomock.NewController(t)
+			ctrl := gomock.NewController(t)
 
-// 			mockIR := NewMockItemRepository(ctrl)
-// 			tt.injector(mockIR)
-// 			h := &Handlers{itemRepo: mockIR}
+			mockIR := NewMockItemRepository(ctrl)
+			tt.injector(mockIR)
+			h := &Handlers{itemRepo: mockIR}
 
-// 			values := url.Values{}
-// 			for k, v := range tt.args {
-// 				values.Set(k, v)
-// 			}
-// 			req := httptest.NewRequest("POST", "/items", strings.NewReader(values.Encode()))
-// 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
 
-// 			rr := httptest.NewRecorder()
-// 			h.AddItem(rr, req)
+			_ = writer.WriteField("name", tt.name)
+			_ = writer.WriteField("category", tt.category)
+			if len(tt.image) > 0 {
+				part, err := writer.CreateFormFile("image", "dummy.jpg")
+				if err != nil {
+					t.Fatalf("failed to create form file: %v", err)
+				}
+				_, err = part.Write(tt.image)
+				if err != nil {
+					t.Fatalf("failed to write form file: %v", err)
+				}
+			}
+			writer.Close()
+			
+			req := httptest.NewRequest("POST", "/items", &body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
 
-// 			if tt.wants.code != rr.Code {
-// 				t.Errorf("expected status code %d, got %d", tt.wants.code, rr.Code)
-// 			}
-// 			if tt.wants.code >= 400 {
-// 				return
-// 			}
+			rr := httptest.NewRecorder()
+			h.AddItem(rr, req)
 
-// 			for _, v := range tt.args {
-// 				if !strings.Contains(rr.Body.String(), v) {
-// 					t.Errorf("response body does not contain %s, got: %s", v, rr.Body.String())
-// 				}
-// 			}
-// 		})
-// 	}
-// }
+			if tt.wants.code != rr.Code {
+				t.Errorf("expected status code %d, got %d", tt.wants.code, rr.Code)
+			}
+			if tt.wants.code >= 400 {
+				return
+			}
+
+			if !strings.Contains(rr.Body.String(), tt.name) {
+				t.Errorf("response body does not contain %s, got: %s", tt.name, rr.Body.String())
+			}
+		})
+	}
+}
 
 // STEP 6-4: uncomment this test
 // func TestAddItemE2e(t *testing.T) {
